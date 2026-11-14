@@ -12,6 +12,12 @@ type View = Omit<TransportState, "loadedId">;
 export function useTransport(
   episode: Episode,
   onHeard: (sourceId: string, position: number) => void,
+  onTick?: (
+    sourceId: string,
+    previous: number,
+    next: number,
+    seeked: boolean,
+  ) => void,
 ) {
   const loaded = useRef<{ element: HTMLAudioElement; episode: Episode } | null>(
       null,
@@ -19,8 +25,11 @@ export function useTransport(
     generation = useRef(0),
     seekTarget = useRef<number | null>(null),
     rateTarget = useRef<number | null>(null),
-    callback = useRef(onHeard);
+    callback = useRef(onHeard),
+    tickCallback = useRef(onTick),
+    lastPosition = useRef(0);
   callback.current = onHeard;
+  tickCallback.current = onTick;
   const [view, setView] = useState<View>({
     requestedId: episode.id,
     position: 0,
@@ -58,6 +67,7 @@ export function useTransport(
       seekTarget.current = null;
       rateTarget.current = null;
       old?.removeAttribute("src");
+      lastPosition.current = audio.currentTime;
       setView((v) => ({
         ...v,
         loading: false,
@@ -70,11 +80,17 @@ export function useTransport(
     };
     const time = () => {
       if (!valid() || loaded.current?.element !== audio) return;
+      const next = bounded(audio.currentTime, 0, episode.duration),
+        previous = lastPosition.current;
       setView((v) => ({ ...v, position: audio.currentTime }));
-      callback.current(
+      callback.current(episode.id, next);
+      tickCallback.current?.(
         episode.id,
-        bounded(audio.currentTime, 0, episode.duration),
+        previous,
+        next,
+        next - previous > 1.5,
       );
+      lastPosition.current = next;
     };
     const playing = () => {
       if (valid()) setView((v) => ({ ...v, playing: !audio.paused }));
@@ -114,6 +130,7 @@ export function useTransport(
       return;
     }
     a.currentTime = bounded(position, 0, a.duration || episode.duration);
+    lastPosition.current = a.currentTime;
     setView((v) => ({ ...v, position: a.currentTime }));
     callback.current(
       loaded.current!.episode.id,

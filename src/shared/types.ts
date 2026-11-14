@@ -53,6 +53,34 @@ export interface Investigation {
   ending: string | null;
 }
 export type HeardHistory = Record<string, number>;
+export type VisualDirection = "north" | "east" | "south" | "west";
+export type VisualCadence = "brief" | "long";
+export interface VisualEvent {
+  id: string;
+  offset: number;
+  label: string;
+  detail: string;
+  direction: VisualDirection;
+  cadence: VisualCadence;
+}
+export interface VisualQuestionOption {
+  id: string;
+  label: string;
+}
+export interface VisualQuestion {
+  prompt: string;
+  options: VisualQuestionOption[];
+  answer: string;
+}
+export interface VisualSequence {
+  episodeId: string;
+  clueId: string;
+  title: string;
+  intro: string;
+  events: VisualEvent[];
+  question: VisualQuestion;
+}
+export type VisualProgress = Record<string, string[]>;
 export interface AudioBookmark {
   sceneId: SceneId;
   start: number;
@@ -83,6 +111,7 @@ export interface CaseSnapshot {
   story: Investigation;
   evidence: EvidenceState;
   heard: HeardHistory;
+  visual: VisualProgress;
   resume: ResumePoint;
 }
 export interface SaveSlot {

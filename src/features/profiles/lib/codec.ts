@@ -117,6 +117,20 @@ export function validateSnapshot(
     if (position > episode.duration) throw new Error("收听位置超出音频");
     heard[id] = position;
   }
+  const visual: Record<string, string[]> = {};
+  const rawVisual =
+    root.visual === undefined ? {} : object(root.visual, "视觉观察记录");
+  for (const [id, value] of Object.entries(rawVisual)) {
+    const episode = content.episodes.find((item) => item.id === id);
+    if (!episode) throw new Error("视觉观察记录包含未知音源");
+    const ids = array(value, "视觉事件");
+    const normalized: string[] = [];
+    for (const eventId of ids) {
+      const idText = string(eventId, "视觉事件编号");
+      if (!normalized.includes(idText)) normalized.push(idText);
+    }
+    visual[id] = normalized;
+  }
   const rawResume = object(root.resume, "播放进度");
   const sceneId = scene(rawResume.sceneId),
     position = number(rawResume.position, "播放位置"),
@@ -129,6 +143,7 @@ export function validateSnapshot(
     story,
     evidence: { notes, clues, selectedId },
     heard,
+    visual,
     resume: { sceneId, position, rate },
   };
 }

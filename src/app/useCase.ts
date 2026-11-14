@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type {
   HeardHistory,
   SaveSlot,
@@ -18,10 +18,16 @@ import {
   createEvidence,
   addNote,
   collectClue,
+  collectVisualClue,
   editNote,
   deleteNote,
   togglePinned,
 } from "../features/evidence";
+import {
+  isVisualAnswerCorrect,
+  sequenceForEpisode,
+  useVisualInvestigation,
+} from "../features/visual";
 import {
   readSlots,
   createSnapshot,
@@ -43,11 +49,12 @@ export function useCase() {
       boot.warning || "戴上耳机，从第一通来电开始调查。",
     ),
     [dirty, setDirty] = useState(false);
+  const visual = useVisualInvestigation();
   const episode = resolveEpisode(CASE_CONTENT, story.sceneId, evidence.clues);
   const onHeard = useCallback((id: string, position: number) => {
     setHeard((h) => recordPosition(h, id, position));
   }, []);
-  const audio = useTransport(episode, onHeard);
+  const audio = useTransport(episode, onHeard, visual.onTick);
   const run = (fn: () => void) => {
     try {
       fn();
@@ -112,17 +119,41 @@ export function useCase() {
     setDirty(true);
     setNotice("声音线索已归档，对话可能因此发生变化。");
   };
+  const answerVisual = (optionId: string) =>
+    run(() => {
+      const sequence = sequenceForEpisode(episode.id);
+      if (!sequence) throw new Error("当前录音没有可比对的视觉事件");
+      if (evidence.clues.includes(sequence.clueId))
+        throw new Error("这条线索已经取得，无需重复作答。");
+      if (!isVisualAnswerCorrect(sequence, optionId)) {
+        setNotice("比对结果与事件记录不符，再按时间顺序核对一次。");
+        return;
+      }
+      const result = collectVisualClue(evidence, episode, sequence);
+      if (!result) throw new Error("线索取得失败，请重新比对。");
+      audio.pause();
+      setEvidence(result);
+      setDirty(true);
+      setNotice("视觉比对成立，线索已归档，调查方向随之更新。");
+    });
   const jump = (n: EvidenceNote) => {
     go(n.anchor.sceneId, n.anchor.start);
     setNotice(`已定位到「${n.title}」对应声音，点击播放回听。`);
   };
   const save = (name: string) =>
     run(() => {
-      const snapshot = createSnapshot(CASE_CONTENT, story, evidence, heard, {
-        sceneId: story.sceneId,
-        position: audio.view.position,
-        rate: audio.view.rate,
-      });
+      const snapshot = createSnapshot(
+        CASE_CONTENT,
+        story,
+        evidence,
+        heard,
+        {
+          sceneId: story.sceneId,
+          position: audio.view.position,
+          rate: audio.view.rate,
+        },
+        visual.progress,
+      );
       const old = slots.find((s) => s.id === activeId);
       const slot =
         old && name === old.name
@@ -152,6 +183,7 @@ export function useCase() {
       setStory(snap.story);
       setEvidence(snap.evidence);
       setHeard(snap.heard);
+      visual.replace(snap.visual);
       setActiveId(id);
       setDirty(false);
       setNotice(`已载入「${slot.name}」，点击播放继续调查。`);
@@ -182,6 +214,7 @@ export function useCase() {
     story,
     evidence,
     heard,
+    visual,
     slots,
     activeId,
     notice,
@@ -192,6 +225,7 @@ export function useCase() {
     choose,
     note,
     collect,
+    answerVisual,
     jump,
     save,
     load,
@@ -220,6 +254,7 @@ export function useCase() {
       setStory(createInvestigation());
       setEvidence(createEvidence());
       setHeard({});
+      visual.reset();
       setActiveId(null);
       setDirty(false);
       if (story.sceneId === "arrival") audio.seek(0);

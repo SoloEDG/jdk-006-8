@@ -11,6 +11,7 @@ import {
   Save,
   Check,
   ChevronRight,
+  Eye,
   Info,
 } from "lucide-react";
 import {
@@ -24,11 +25,14 @@ import { Player } from "../features/listening";
 import { TranscriptPanel } from "../features/transcript";
 import { EvidencePanel, canCollectSound } from "../features/evidence";
 import { ProfilesDialog } from "../features/profiles";
+import { VisualPanel } from "../features/visual";
 import { currentCue } from "../features/transcript";
 import { useCase } from "./useCase";
 export function App() {
   const c = useCase(),
-    [tab, setTab] = useState<"transcript" | "evidence">("transcript"),
+    [tab, setTab] = useState<"transcript" | "visual" | "evidence">(
+      "transcript",
+    ),
     [profiles, setProfiles] = useState(false),
     [about, setAbout] = useState(false);
   const scene = CASE_CONTENT.scenes.find((s) => s.id === c.story.sceneId)!,
@@ -215,6 +219,13 @@ export function App() {
                 剧情字幕
               </button>
               <button
+                className={tab === "visual" ? "active" : ""}
+                onClick={() => setTab("visual")}
+              >
+                <Eye size={14} />
+                视觉调查
+              </button>
+              <button
                 className={tab === "evidence" ? "active" : ""}
                 onClick={() => setTab("evidence")}
               >
@@ -237,6 +248,15 @@ export function App() {
                   !c.audio.view.loading &&
                   canCollectSound(c.heard, c.episode, cue)
                 }
+              />
+            ) : tab === "visual" ? (
+              <VisualPanel
+                episode={c.episode}
+                position={c.audio.view.position}
+                progress={c.visual.progress}
+                collectedClues={c.evidence.clues}
+                onAnswer={c.answerVisual}
+                onSeek={c.audio.seek}
               />
             ) : (
               <EvidencePanel
@@ -319,6 +339,9 @@ export function App() {
             </p>
             <p>
               当你听到可疑声音，收集字幕下方的声音线索。已掌握的线索会改变角色回答，并解锁新的调查方向。
+            </p>
+            <p>
+              听不清背景声时，切换到「视觉调查」：钟声、雾笛与电流会随播放逐项呈现为带方位与节奏的事件，只有已经出现的事件能参与比较，答对后取得同一份正式线索，重复取得不会重复计数。
             </p>
             <p>
               用「标记此刻」保留最近五秒的个人笔记，编辑观察，再从笔记跳回录音。自由笔记不会自动解锁证据。

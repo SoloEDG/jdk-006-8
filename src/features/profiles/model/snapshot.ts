@@ -5,6 +5,7 @@ import type {
   HeardHistory,
   Investigation,
   ResumePoint,
+  VisualProgress,
 } from "../../../shared/types";
 import { validateSnapshot } from "../lib/codec";
 export function createSnapshot(
@@ -13,9 +14,10 @@ export function createSnapshot(
   evidence: EvidenceState,
   heard: HeardHistory,
   resume: ResumePoint,
+  visual: VisualProgress = {},
 ): CaseSnapshot {
   return validateSnapshot(
-    { version: 1, caseId: content.id, story, evidence, heard, resume },
+    { version: 1, caseId: content.id, story, evidence, heard, visual, resume },
     content,
   );
 }
